@@ -10,6 +10,7 @@ data/examples/JEBC/
 raw_data/
 *.zip
 *.tar
+vector_store/
 
 
 # Distribution / packaging
