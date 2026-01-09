@@ -4,6 +4,7 @@ colorama
 contourpy
 cycler
 fonttools
+groq
 joblib
 kiwisolver
 matplotlib
@@ -20,9 +21,11 @@ regex
 scikit-learn
 scipy
 seaborn
+sentencepiece
 sentence-transformers
 six
 threadpoolctl
 torch
+transformers
 tqdm
 tzdata
