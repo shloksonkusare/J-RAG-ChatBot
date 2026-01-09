@@ -1,37 +1,59 @@
 # J-RAG-ChatBot — Japanese Learning RAG System
 
-A production-grade **Retrieval-Augmented Generation (RAG)** chatbot for learning Japanese, built with clean data pipelines, embeddings, and a persistent vector database, designed from day one for scalability, CI/CD, and future UI/backend integration.
+A production-grade **Retrieval-Augmented Generation (RAG)** system for learning Japanese, built with clean data pipelines, metadata-aware retrieval, embeddings, translation support, and LLM-based answer generation.
 
----
+This project is designed from day one for:
+
+- scalability
+
+- CI/CD
+
+- backend & UI integration
+
+- real-world RAG correctness (not a demo)
 
 ## 📌 Project Goal
 
 The goal of this project is to build a metadata-aware Japanese learning assistant that can:
-- Explain Japanese grammar concepts
+
+- Explain Japanese grammar concepts (e.g. は vs が)
+
 - Teach JLPT vocabulary
+
 - Perform semantic (meaning-based) retrieval
-- Serve as a strong foundation for a future LLM-powered chatbot
+
+- Support multilingual input (Japanese / English)
+
+- Generate grounded answers using an LLM
 
 This project focuses on engineering correctness first:
+
 - clean ingestion
+
 - structured normalization
+
 - reliable embeddings
+
 - persistent vector storage
-- strong logging and error handling
 
----
-# ✅ Current Capabilities (Implemented)
-### ✔ Data Ingestion & Normalization
+- strong logging & exception handling
 
-- Grammar extracted from Tae Kim’s Grammar Guide (PDF)
+- modular, extensible architecture
 
-- Vocabulary ingested from JLPT Kaggle dataset (CSV)
+## Current Capabilities (Implemented)
+- Data Ingestion & Normalization
 
-- Converted into a strict JSONL schema with metadata
+  - Grammar extracted from Tae Kim’s Grammar Guide (PDF)
 
-### ✔ Metadata-Rich Schema
+  - Vocabulary ingested from JLPT Kaggle dataset (CSV)
 
-Each knowledge unit follows:
+  - Converted into a strict JSONL schema with metadata
+
+  - Chunked and cleaned for semantic retrieval
+
+##  Metadata-Rich Schema
+
+Each knowledge unit follows a strict format:
 ```
 {
   "text": "...",
@@ -42,22 +64,68 @@ Each knowledge unit follows:
 }
 ```
 
-This enables precise retrieval, filtering, and future ranking.
 
-### ✔ Production-Grade Engineering
+This enables:
 
-- Centralized logging (logging.py)
+- grammar-only retrieval
 
-- Custom exception handling (exception.py)
+- JLPT-aware filtering
+
+- topic-based routing
+
+- future ranking and re-scoring
+
+## Embeddings & Vector Database
+
+- Multilingual embeddings generated using Sentence Transformers
+
+- Persistent ChromaDB vector store
+
+- Disk-backed storage (no re-embedding required on restart)
+
+- Batched ingestion for scalability
+
+- Metadata-aware similarity search
+
+## Translation Layer (Free & Offline)
+
+- Japanese → English translation for query normalization
+
+- Implemented using MarianMT / Fugumt models
+
+- No API keys required
+
+- CPU-friendly
+
+- Cleanly isolated translation module
+
+- Used only where appropriate (input normalization), not for reasoning.
+
+## LLM-Powered Answer Generation (Full RAG Loop)
+
+- Integrated Groq LLM API for fast, high-quality reasoning
+
+- Context-grounded answer generation
+
+- Retrieval + reasoning combined end-to-end
+
+- .env-based secret management (no hardcoded keys)
+
+- Prompt designed for factual, grounded explanations
+
+## Production-Grade Engineering
+
+- Centralized logging (login.py)
+
+- Custom exception handling with traceability (exception.py)
 
 - CI/CD-friendly pipeline entry points
 
-- Modular, testable architecture
+- Layered architecture (ingestion → processing → embeddings → retrieval → LLM)
 
---- 
+- Debugged real-world dependency & environment issues (Windows, Python, ML stack)
 
 ## Final Directory Architecture (Locked)
-
 ```
 J-RAG-ChatBot/
 ├── data/
@@ -95,57 +163,61 @@ J-RAG-ChatBot/
 │   ├── vector_db/
 │   │   └── chroma_client.py
 │   │
+│   ├── translation/
+│   │   └── translator.py
+│   │
+│   ├── llm/
+│   │   └── answer_generator.py
+│   │
+│   ├── rag/
+│   │   └── rag_pipeline.py
+│   │
 │   ├── pipelines/
 │   │   ├── build_dataset.py
 │   │   └── build_embeddings.py
 │   │
 │   ├── tests/
-│   │   └── manual_similarity_test.py
+│   │   ├── manual_similarity_test.py
+│   │   └── test_rag_pipeline.py
 │   │
 │   ├── exception.py
 │   └── logging.py
 │
+├── .env
 ├── requirements.txt
 ├── README.md
 └── setup.py
 ```
 
-# ▶️ How to Run Pipelines
-
-#### Build Dataset (Grammar + Vocab)
+## How to Run Pipelines
+- Build Dataset (Grammar + Vocabulary)
 ```python -m src.pipelines.build_dataset```
 
-#### Build Embeddings & Vector Store
+- Build Embeddings & Vector Store
 ```python -m src.pipelines.build_embeddings```
 
-#### Manual Similarity Search Test
+- Manual Similarity Search Test
 ```python -m src.tests.manual_similarity_test```
 
----
+- End-to-End RAG Test (Retrieval + LLM)
+```python -m src.tests.test_rag_pipeline```
 
-## Data Sources:
-1. Japanese-English Bilingual Corpus - [Kaggle](https://www.kaggle.com/datasets/team-ai/japaneseenglish-bilingual-corpus).
-2. JLPT Vocabulary by Level - [Kaggle](https://www.kaggle.com/datasets/robinpourtaud/jlpt-words-by-level).
-3. A Guide to Japanese Grammar by Tae Kim - [Link](https://www.amazon.com/Guide-Japanese-Grammar-approach-learning/dp/1495238962).
+🔐 Environment Variables
 
----
+Create a .env file in the project root:
 
-### 🚀 What’s Next (Planned)
+```GROQ_API_KEY=your_api_key_here```
 
-- LLM-powered answer generation (full RAG loop)
 
-- Metadata filtering (JLPT level, grammar-only queries)
+.env is excluded via .gitignore
 
-- FastAPI backend
+📚 Data Sources
 
-- UI for learners
+1. Japanese-English Bilingual Corpus — Kaggle
+https://www.kaggle.com/datasets/team-ai/japaneseenglish-bilingual-corpus
 
-- CI/CD automation (GitHub Actions)
+2. JLPT Vocabulary by Level — Kaggle
+https://www.kaggle.com/datasets/robinpourtaud/jlpt-words-by-level
 
-### 🏁 Current Status
-- Retrieval layer complete
-- Embeddings complete
-- Vector DB persistent
-- Ready for LLM integration
-
-This project now has a solid, real-world RAG foundation, not a demo or notebook experiment.
+3. A Guide to Japanese Grammar — Tae Kim
+https://www.amazon.com/dp/1495238962

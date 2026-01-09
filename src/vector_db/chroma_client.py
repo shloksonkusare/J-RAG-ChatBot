@@ -73,25 +73,24 @@ class ChromaClient:
 
 
 
-    def similarity_search(
-        self,
-        query_embedding: List[float],
-        top_k: int = 5
-    ) -> Dict:
-        """
-        Perform similarity search
-        """
+    def similarity_search(self, query_embedding, top_k=5, where=None):
         try:
             logging.info("Performing similarity search")
 
-            results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=top_k
-            )
+            query_args = {
+                "query_embeddings": [query_embedding],
+                "n_results": top_k
+            }
 
-            logging.info("Similarity search completed")
+            if where:
+                query_args["where"] = where
+                logging.info(f"Applying metadata filter: {where}")
+
+            results = self.collection.query(**query_args)
+
             return results
 
         except Exception as e:
             logging.error("Similarity search failed")
             raise CustomException(e, sys)
+
