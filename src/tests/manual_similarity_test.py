@@ -1,3 +1,9 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+
 from src.embeddings.embedder import Embedder
 from src.vector_db.chroma_client import ChromaClient
 
