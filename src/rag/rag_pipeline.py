@@ -48,30 +48,24 @@ class RAGPipeline:
             # Step 2: Embed query
             query_embedding = self.embedder.embed_texts([query_en])[0]
 
-            # Step 3: Retrieve contexts
+            # Step 3: Retrieve contexts with metadata filtering
             results = self.db.similarity_search(
                 query_embedding,
                 top_k=top_k,
                 where={"type": "grammar"}
             )
 
-            contexts: List[str] = results["documents"][0]
+            contexts: List[str] = results.get("documents", [[]])[0]
+            metadatas: List[dict] = results.get("metadatas", [[]])[0]
 
-            # Step 4: Generate answer (English)
-            answer_en = self.answer_generator.generate_answer(
+            # Step 4: Generate structured answer WITH source attribution
+            answer = self.answer_generator.generate_answer(
                 query=query_en,
-                contexts=contexts
+                contexts=contexts,
+                metadatas=metadatas
             )
 
-            # # Step 5: Translate answer back if needed
-            # if original_language == "ja":
-            #     logging.info("Translating answer back to Japanese")
-            #     answer_final = self.en_ja_translator.translate([answer_en])[0]
-            # else:
-            #     answer_final = answer_en
-
-            # return answer_final
-            return answer_en
+            return answer
 
         except Exception as e:
             logging.error("RAGPipeline failed")
