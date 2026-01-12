@@ -3,6 +3,7 @@ click
 colorama
 contourpy
 cycler
+fastapi
 fonttools
 groq
 joblib
@@ -24,8 +25,10 @@ seaborn
 sentencepiece
 sentence-transformers
 six
+slowapi
 threadpoolctl
 torch
 transformers
 tqdm
 tzdata
+uvicorn

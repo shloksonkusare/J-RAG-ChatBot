@@ -1,6 +1,6 @@
 import sys
 import re
-from typing import List
+from typing import List, Optional
 
 from src.embeddings.embedder import Embedder
 from src.vector_db.chroma_client import ChromaClient
@@ -32,9 +32,22 @@ class RAGPipeline:
         except Exception as e:
             raise CustomException(e, sys)
 
-    def run(self, query: str, top_k: int = 5) -> str:
+    def run(
+        self,
+        query: str,
+        top_k: int = 5,
+        jlpt_level: Optional[str] = None,
+        content_type: str = "grammar"
+    ) -> str:
         try:
-            logging.info(f"Received query: {query}")
+            logging.info(
+                f"Received query: {query} | "
+                f"JLPT: {jlpt_level} | Type: {content_type}"
+            )
+
+            # ---- Day 14: Query guardrail ----
+            if len(query.strip()) < 3:
+                return "Please ask a more specific Japanese language question."
 
             original_language = "ja" if is_japanese(query) else "en"
 
@@ -48,15 +61,40 @@ class RAGPipeline:
             # Step 2: Embed query
             query_embedding = self.embedder.embed_texts([query_en])[0]
 
-            # Step 3: Retrieve contexts with metadata filtering
+            # ---- Day 15.2: Build dynamic metadata filter ----
+            where_filter = {"type": content_type}
+
+            if jlpt_level:
+                where_filter["jlpt_level"] = jlpt_level
+
+            logging.info(f"Chroma filter applied: {where_filter}")
+
+            # Step 3: Retrieve contexts
             results = self.db.similarity_search(
                 query_embedding,
                 top_k=top_k,
-                where={"type": "grammar"}
+                where=where_filter
             )
 
             contexts: List[str] = results.get("documents", [[]])[0]
             metadatas: List[dict] = results.get("metadatas", [[]])[0]
+
+            # ---- Day 14: Empty retrieval safeguard ----
+            if not contexts:
+                return (
+                    "Grammar Explanation:\n"
+                    "Not found in context.\n\n"
+                    "Rule:\n"
+                    "Not found in context.\n\n"
+                    "Usage:\n"
+                    "Not found in context.\n\n"
+                    "Examples:\n"
+                    "- Not found in context.\n\n"
+                    "Common Mistakes:\n"
+                    "- Not found in context.\n\n"
+                    "Source:\n"
+                    "- No relevant source found"
+                )
 
             # Step 4: Generate structured answer WITH source attribution
             answer = self.answer_generator.generate_answer(
