@@ -37,7 +37,8 @@ class RAGPipeline:
         query: str,
         top_k: int = 5,
         jlpt_level: Optional[str] = None,
-        content_type: str = "grammar"
+        content_type: str = "grammar",
+        conversation_memory: Optional[List[dict]] = None
     ) -> str:
         try:
             logging.info(
@@ -63,7 +64,6 @@ class RAGPipeline:
 
             # ---- Day 15.2: Build dynamic metadata filter ----
             where_filter = {"type": content_type}
-
             if jlpt_level:
                 where_filter["jlpt_level"] = jlpt_level
 
@@ -96,11 +96,20 @@ class RAGPipeline:
                     "- No relevant source found"
                 )
 
-            # Step 4: Generate structured answer WITH source attribution
+            # ---- Day 16: Build conversation memory text ----
+            memory_text = ""
+            if conversation_memory:
+                memory_text = "\n".join(
+                    f"User: {turn['user']}\nAssistant: {turn['assistant']}"
+                    for turn in conversation_memory
+                )
+
+            # Step 4: Generate structured answer WITH memory + sources
             answer = self.answer_generator.generate_answer(
                 query=query_en,
                 contexts=contexts,
-                metadatas=metadatas
+                metadatas=metadatas,
+                memory_text=memory_text
             )
 
             return answer

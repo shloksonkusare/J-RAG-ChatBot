@@ -57,39 +57,39 @@ class AnswerGenerator:
             source_block = "\n".join(sorted(sources)) if sources else "- Unknown source"
 
             prompt = f"""
-You are a Japanese language tutor.
+                You are a Japanese language tutor.
 
-You MUST answer using ONLY the information provided in the context.
-If a section cannot be answered from the context, write:
-"Not found in context."
+                You MUST answer using ONLY the information provided in the context.
+                If a section cannot be answered from the context, write:
+                "Not found in context."
 
-Context:
-{context_text}
+                Context:
+                {context_text}
 
-Question:
-{query}
+                Question:
+                {query}
 
-Your response MUST follow this exact structure:
+                Your response MUST follow this exact structure:
 
-Grammar Explanation:
-<explanation>
+                Grammar Explanation:
+                <explanation>
 
-Rule:
-<rule>
+                Rule:
+                <rule>
 
-Usage:
-<usage>
+                Usage:
+                <usage>
 
-Examples:
-- <example 1>
-- <example 2>
+                Examples:
+                - <example 1>
+                - <example 2>
 
-Common Mistakes:
-- <mistake 1>
-- <mistake 2>
+                Common Mistakes:
+                - <mistake 1>
+                - <mistake 2>
 
-DO NOT invent sources.
-"""
+                DO NOT invent sources.
+                """
 
             response = self.client.chat.completions.create(
                 model=self.model,

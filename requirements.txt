@@ -31,4 +31,5 @@ torch
 transformers
 tqdm
 tzdata
+uuid
 uvicorn

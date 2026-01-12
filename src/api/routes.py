@@ -4,23 +4,41 @@ from src.api.schemas import ChatRequest, ChatResponse
 from src.rag.rag_pipeline import RAGPipeline
 from src.api.schemas import QuizRequest, QuizResponse
 from src.llm.quiz_generator import QuizGenerator
+from src.memory.conversation_memory import ConversationMemory
+import uuid
+
 
 
 router = APIRouter()
 rag = RAGPipeline()
 
+SESSION_MEMORY = {}
+
+
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    """
-    General RAG-based chat endpoint with metadata filtering
-    """
+    session_id = request.session_id or str(uuid.uuid4())
+
+    if session_id not in SESSION_MEMORY:
+        SESSION_MEMORY[session_id] = ConversationMemory(max_turns=5)
+
+    memory = SESSION_MEMORY[session_id]
+
     answer = rag.run(
         query=request.query,
         jlpt_level=request.jlpt_level,
-        content_type=request.content_type
+        content_type=request.content_type,
+        conversation_memory=memory.get_memory()
     )
-    return {"answer": answer}
+
+    memory.add_turn(request.query, answer)
+
+    return {
+        "answer": answer,
+        "session_id": session_id
+    }
+
 
 
 @router.post("/explain", response_model=ChatResponse)
