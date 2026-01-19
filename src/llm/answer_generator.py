@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from dotenv import load_dotenv
 from groq import Groq
@@ -8,8 +8,7 @@ from groq import Groq
 from src.login import logging
 from src.exception import CustomException
 
-
-# Load environment variables from .env
+# Load environment variables
 load_dotenv()
 
 
@@ -33,21 +32,129 @@ class AnswerGenerator:
             logging.error("Failed to initialize Groq AnswerGenerator")
             raise CustomException(e, sys)
 
+    # -------------------------
+    # Prompt Templates
+    # -------------------------
+
+    def _normal_prompt(
+        self,
+        query: str,
+        context_text: str,
+        memory_text: str
+    ) -> str:
+        return f"""
+You are a Japanese language tutor.
+
+You MUST answer using ONLY the information provided in the context.
+If a section cannot be answered from the context, write:
+"Not found in context."
+
+Previous Conversation (for reference only):
+{memory_text}
+
+IMPORTANT:
+- Use memory ONLY to understand follow-up questions
+- DO NOT repeat previous answers
+- DO NOT use memory as a knowledge source
+
+Context:
+{context_text}
+
+Question:
+{query}
+
+Your response MUST follow this exact structure:
+
+Grammar Explanation:
+<explanation>
+
+Rule:
+<rule>
+
+Usage:
+<usage>
+
+Examples:
+- <example 1>
+- <example 2>
+
+Common Mistakes:
+- <mistake 1>
+- <mistake 2>
+
+DO NOT invent sources.
+"""
+
+    def _mistake_prompt(
+        self,
+        query: str,
+        context_text: str,
+        memory_text: str,
+        mistake_type: str
+    ) -> str:
+        return f"""
+You are a Japanese language tutor.
+
+The user's sentence contains a GRAMMATICAL MISTAKE.
+Mistake type: {mistake_type}
+
+You MUST explain the mistake using ONLY the information provided in the context.
+Do NOT invent grammar rules.
+
+Previous Conversation (for reference only):
+{memory_text}
+
+IMPORTANT:
+- Do NOT use memory as a knowledge source
+- Do NOT soften the mistake — explain clearly and politely
+- Do NOT invent rules or sources
+
+Context:
+{context_text}
+
+User Sentence:
+{query}
+
+Your response MUST follow this exact structure:
+
+Mistake Explanation:
+- Why the sentence is incorrect
+
+Correct Rule:
+- The correct grammar rule
+
+Corrected Examples:
+- <correct example 1>
+- <correct example 2>
+
+Contrast:
+- ❌ <incorrect usage>
+- ✔ <correct usage>
+
+DO NOT invent sources.
+"""
+
+    # -------------------------
+    # Public API
+    # -------------------------
+
     def generate_answer(
         self,
         query: str,
         contexts: List[str],
-        metadatas: List[Dict]
+        metadatas: List[Dict],
+        memory_text: str = "",
+        mistake_type: Optional[str] = None
     ) -> str:
         """
         Generate a structured, source-attributed answer.
         """
         try:
-            logging.info("Generating structured answer with source attribution")
+            logging.info("Generating answer via Groq LLM")
 
             context_text = "\n".join(contexts[:5])
 
-            # Build deterministic source attribution
+            # ---- Source attribution (deterministic) ----
             sources = set()
             for meta in metadatas:
                 source = meta.get("source", "Unknown source")
@@ -56,41 +163,22 @@ class AnswerGenerator:
 
             source_block = "\n".join(sorted(sources)) if sources else "- Unknown source"
 
-            prompt = f"""
-                You are a Japanese language tutor.
+            # ---- Prompt selection ----
+            if mistake_type:
+                prompt = self._mistake_prompt(
+                    query=query,
+                    context_text=context_text,
+                    memory_text=memory_text,
+                    mistake_type=mistake_type
+                )
+            else:
+                prompt = self._normal_prompt(
+                    query=query,
+                    context_text=context_text,
+                    memory_text=memory_text
+                )
 
-                You MUST answer using ONLY the information provided in the context.
-                If a section cannot be answered from the context, write:
-                "Not found in context."
-
-                Context:
-                {context_text}
-
-                Question:
-                {query}
-
-                Your response MUST follow this exact structure:
-
-                Grammar Explanation:
-                <explanation>
-
-                Rule:
-                <rule>
-
-                Usage:
-                <usage>
-
-                Examples:
-                - <example 1>
-                - <example 2>
-
-                Common Mistakes:
-                - <mistake 1>
-                - <mistake 2>
-
-                DO NOT invent sources.
-                """
-
+            # ---- LLM Call ----
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
@@ -99,14 +187,12 @@ class AnswerGenerator:
 
             answer_text = response.choices[0].message.content.strip()
 
-            final_answer = (
+            return (
                 f"{answer_text}\n\n"
                 "Source:\n"
                 f"{source_block}"
             )
 
-            return final_answer
-
         except Exception as e:
-            logging.error("Answer generation with sources failed")
+            logging.error("Answer generation failed")
             raise CustomException(e, sys)

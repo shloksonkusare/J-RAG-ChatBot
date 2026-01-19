@@ -6,6 +6,8 @@ from src.embeddings.embedder import Embedder
 from src.vector_db.chroma_client import ChromaClient
 from src.translation.translator import Translator
 from src.llm.answer_generator import AnswerGenerator
+from src.mistake.detector import MistakeDetector
+from src.mistake.classifier import MistakeClassifier
 from src.login import logging
 from src.exception import CustomException
 
@@ -50,6 +52,14 @@ class RAGPipeline:
             if len(query.strip()) < 3:
                 return "Please ask a more specific Japanese language question."
 
+            # ---- Day 17: Mistake detection & classification ----
+            is_mistake = MistakeDetector.is_likely_mistake(query)
+            mistake_type = None
+
+            if is_mistake:
+                mistake_type = MistakeClassifier.classify(query)
+                logging.info(f"Mistake detected | Type: {mistake_type}")
+
             original_language = "ja" if is_japanese(query) else "en"
 
             # Step 1: Translate query if needed
@@ -62,10 +72,15 @@ class RAGPipeline:
             # Step 2: Embed query
             query_embedding = self.embedder.embed_texts([query_en])[0]
 
-            # ---- Day 15.2: Build dynamic metadata filter ----
+            # ---- Day 15.2 + Day 17: Build metadata filter ----
             where_filter = {"type": content_type}
+
             if jlpt_level:
                 where_filter["jlpt_level"] = jlpt_level
+
+            # Contrast-focused retrieval for mistakes
+            if mistake_type == "particle_contrast":
+                where_filter["topic"] = "particles"
 
             logging.info(f"Chroma filter applied: {where_filter}")
 
@@ -104,13 +119,15 @@ class RAGPipeline:
                     for turn in conversation_memory
                 )
 
-            # Step 4: Generate structured answer WITH memory + sources
+            # Step 4: Generate answer (mistake-aware)
             answer = self.answer_generator.generate_answer(
                 query=query_en,
                 contexts=contexts,
                 metadatas=metadatas,
-                memory_text=memory_text
+                memory_text=memory_text,
+                mistake_type=mistake_type
             )
+
 
             return answer
 

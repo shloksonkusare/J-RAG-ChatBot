@@ -2,7 +2,7 @@ from src.rag.rag_pipeline import RAGPipeline
 
 rag = RAGPipeline()
 
-query = "What is the Japanese Alphabet for A？"
+query = "私は行きますか？"
 answer = rag.run(query)
 
 print("\nFinal Answer:\n")
