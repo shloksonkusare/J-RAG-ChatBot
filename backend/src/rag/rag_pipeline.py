@@ -1,0 +1,136 @@
+import sys
+import re
+from typing import List, Optional
+
+from src.embeddings.embedder import Embedder
+from src.vector_db.chroma_client import ChromaClient
+from src.translation.translator import Translator
+from src.llm.answer_generator import AnswerGenerator
+from src.mistake.detector import MistakeDetector
+from src.mistake.classifier import MistakeClassifier
+from src.login import logging
+from src.exception import CustomException
+
+
+def is_japanese(text: str) -> bool:
+    """
+    Detect if text contains Japanese characters
+    """
+    return bool(re.search(r"[\u3040-\u30ff\u4e00-\u9faf]", text))
+
+
+class RAGPipeline:
+    def __init__(self):
+        try:
+            self.embedder = Embedder()
+            self.db = ChromaClient()
+            self.answer_generator = AnswerGenerator()
+
+            self.ja_en_translator = Translator(direction="ja-en")
+            self.en_ja_translator = Translator(direction="en-ja")
+
+            logging.info("RAGPipeline initialized successfully")
+
+        except Exception as e:
+            raise CustomException(e, sys)
+
+    def run(
+        self,
+        query: str,
+        top_k: int = 5,
+        jlpt_level: Optional[str] = None,
+        content_type: str = "grammar",
+        conversation_memory: Optional[List[dict]] = None
+    ) -> str:
+        try:
+            logging.info(
+                f"Received query: {query} | "
+                f"JLPT: {jlpt_level} | Type: {content_type}"
+            )
+
+            # ---- Day 14: Query guardrail ----
+            if len(query.strip()) < 3:
+                return "Please ask a more specific Japanese language question."
+
+            # ---- Day 17: Mistake detection & classification ----
+            is_mistake = MistakeDetector.is_likely_mistake(query)
+            mistake_type = None
+
+            if is_mistake:
+                mistake_type = MistakeClassifier.classify(query)
+                logging.info(f"Mistake detected | Type: {mistake_type}")
+
+            original_language = "ja" if is_japanese(query) else "en"
+
+            # Step 1: Translate query if needed
+            if original_language == "ja":
+                logging.info("Japanese query detected, translating to English")
+                query_en = self.ja_en_translator.translate([query])[0]
+            else:
+                query_en = query
+
+            # Step 2: Embed query
+            query_embedding = self.embedder.embed_texts([query_en])[0]
+
+            # ---- Day 15.2 + Day 17: Build metadata filter ----
+            where_filter = {"type": content_type}
+
+            if jlpt_level:
+                where_filter["jlpt_level"] = jlpt_level
+
+            # Contrast-focused retrieval for mistakes
+            if mistake_type == "particle_contrast":
+                where_filter["topic"] = "particles"
+
+            logging.info(f"Chroma filter applied: {where_filter}")
+
+            # Step 3: Retrieve contexts
+            results = self.db.similarity_search(
+                query_embedding,
+                top_k=top_k,
+                where=where_filter
+            )
+
+            contexts: List[str] = results.get("documents", [[]])[0]
+            metadatas: List[dict] = results.get("metadatas", [[]])[0]
+
+            # ---- Day 14: Empty retrieval safeguard ----
+            if not contexts:
+                return (
+                    "Grammar Explanation:\n"
+                    "Not found in context.\n\n"
+                    "Rule:\n"
+                    "Not found in context.\n\n"
+                    "Usage:\n"
+                    "Not found in context.\n\n"
+                    "Examples:\n"
+                    "- Not found in context.\n\n"
+                    "Common Mistakes:\n"
+                    "- Not found in context.\n\n"
+                    "Source:\n"
+                    "- No relevant source found"
+                )
+
+            # ---- Day 16: Build conversation memory text ----
+            memory_text = ""
+            if conversation_memory:
+                memory_text = "\n".join(
+                    f"User: {turn['user']}\nAssistant: {turn['assistant']}"
+                    for turn in conversation_memory
+                )
+
+            # Step 4: Generate answer (mistake-aware)
+            answer = self.answer_generator.generate_answer(
+                query=query_en,
+                contexts=contexts,
+                metadatas=metadatas,
+                memory_text=memory_text,
+                mistake_type=mistake_type
+            )
+
+
+            return answer
+
+        except Exception as e:
+            logging.error("RAGPipeline failed")
+            raise CustomException(e, sys)
