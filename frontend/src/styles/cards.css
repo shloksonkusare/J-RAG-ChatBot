@@ -1,0 +1,59 @@
+.message-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.message-title {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+}
+
+.message-content section {
+  margin-bottom: 12px;
+}
+
+.message-content h3 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: #374151;
+}
+
+.message-content p,
+.message-content li {
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.message-content ul {
+  padding-left: 20px;
+}
+
+.contrast {
+  display: flex;
+  gap: 12px;
+}
+
+.contrast .incorrect {
+  flex: 1;
+  padding: 8px;
+  background-color: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+}
+
+.contrast .correct {
+  flex: 1;
+  padding: 8px;
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+}
+
+.source {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
